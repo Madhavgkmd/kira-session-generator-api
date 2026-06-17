@@ -150,7 +150,8 @@ app.get("/qr", async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
+// 🚨 Hugging Face-ന് വേണ്ടിയുള്ള പോർട്ട് മാറ്റിയിട്ടുണ്ട് (7860)
+const PORT = process.env.PORT || 7860;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
