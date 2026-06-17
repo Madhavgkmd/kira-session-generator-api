@@ -1,5 +1,5 @@
-# Node.js 18 ഉപയോഗിക്കുന്നു (Baileys-ന് ഇതാണ് ഏറ്റവും നല്ലത്)
-FROM node:18-bullseye-slim
+# Node.js 20 ഉപയോഗിക്കുന്നു (പുതിയ Baileys വേർഷന് ഇത് നിർബന്ധമാണ്)
+FROM node:20-bullseye-slim
 
 # ആപ്പ് റൺ ചെയ്യാനുള്ള ഫോൾഡർ സെറ്റ് ചെയ്യുന്നു
 WORKDIR /app
