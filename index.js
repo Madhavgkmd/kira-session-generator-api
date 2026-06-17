@@ -95,7 +95,7 @@ app.get("/pairing", async (req, res) => {
                         text: "KIRA~" + encoded,
                     });
                     let text =
-                        "*Thank You for Using KIR-X-MD*\n\n\nDeveloper Contact: +91 91882 52308\n\nOfficial Group: https://chat.whatsapp.com/C3hbXjblNLiF7CoDYJ8lwY\n\nIf you encounter any issues or wish to report a problem, please feel free to join our dedicated support group: https://chat.whatsapp.com/I6lxNWSNneILUeqRqCa36S\n\nWe appreciate your feedback and are here to assist you!";
+                        "*Thank You for Using KIRA-X-MD*\n\n\nDeveloper Contact: +91 91882 52308\n\nOfficial Group: https://chat.whatsapp.com/C3hbXjblNLiF7CoDYJ8lwY\n\nIf you encounter any issues or wish to report a problem, please feel free to join our dedicated support group: https://chat.whatsapp.com/C3hbXjblNLiF7CoDYJ8lwY\n\nWe appreciate your feedback and are here to assist you!";
                     await sparky.sendMessage(
                         userJid,
                         { text },
