@@ -36,19 +36,18 @@ app.get("/pair", async (req, res) => {
     if (!phone) return res.json({ error: "Please provide a phone number!" });
     phone = phone.replace(/[^0-9]/g, '');
 
-    const sessionFolder = `./temp_sessions/session_${phone}_${Date.now()}`;
+    // 🚨 FIX 1: Hugging Face-ൽ ക്രാഷ് ആവാതിരിക്കാൻ ഫയലുകൾ /tmp/ ഫോൾഡറിലേക്ക് മാറ്റി
+    const sessionFolder = `/tmp/session_${phone}_${Date.now()}`;
     
     try {
         const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
         const sock = getOptimizedSocket(state);
 
-        // 🚨 പുതിയ ഫിക്സ്: വാട്സാപ്പ് അയക്കുന്ന ഹിസ്റ്ററി ഡാറ്റ അപ്പപ്പോൾ തന്നെ ബ്ലോക്ക് ചെയ്യുന്നു
         sock.ev.on('messaging-history.set', () => {
             console.log(`🗑️ Blocked history sync for ${phone} to save RAM!`);
         });
 
         if (!sock.authState.creds.registered) {
-            // 🚨 3 സെക്കൻഡ് ഡിലേ ഫിക്സ്
             setTimeout(async () => {
                 try {
                     let code = await sock.requestPairingCode(phone);
@@ -99,13 +98,13 @@ app.get("/pair", async (req, res) => {
 // 2. QR CODE ENGINE
 // ----------------------------------------
 app.get("/qr", async (req, res) => {
-    const sessionFolder = `./temp_sessions/qr_${Date.now()}`;
+    // 🚨 FIX 1: QR ഫയലുകളും /tmp/ ഫോൾഡറിലേക്ക് മാറ്റി
+    const sessionFolder = `/tmp/qr_${Date.now()}`;
     try {
         const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
         const sock = getOptimizedSocket(state);
         let qrSent = false;
 
-        // 🚨 ഹിസ്റ്ററി ബ്ലോക്ക് ഫിക്സ് (QR-ലും)
         sock.ev.on('messaging-history.set', () => {
             console.log("🗑️ Blocked history sync for QR session to save RAM!");
         });
@@ -150,8 +149,8 @@ app.get("/qr", async (req, res) => {
     }
 });
 
-// 🚨 Hugging Face-ന് വേണ്ടിയുള്ള പോർട്ട് മാറ്റിയിട്ടുണ്ട് (7860)
+// 🚨 FIX 2: Hugging Face-ൽ പബ്ലിക് ആയി വർക്ക് ചെയ്യാൻ "0.0.0.0" ആഡ് ചെയ്തു
 const PORT = process.env.PORT || 7860;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
