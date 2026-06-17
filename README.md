@@ -1,1 +1,0 @@
-# kira-session-generator-api
