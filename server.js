@@ -13,6 +13,21 @@ app.get("/", (req, res) => {
     res.send("KIRA SESSION GENERATOR ONLINE 🔥");
 });
 
+// --- Baileys Socket Configuration (RAM Optimized) ---
+function getOptimizedSocket(state) {
+    return makeWASocket({
+        logger: pino({ level: "silent" }),
+        printQRInTerminal: false,
+        auth: state,
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
+        // 🚨 നിർബന്ധമായും റാം സേവ് ചെയ്യാനുള്ള സെറ്റിങ്സ്
+        syncFullHistory: false, 
+        markOnlineOnConnect: false,
+        generateHighQualityLinkPreview: false,
+        getMessage: async () => { return { conversation: "KIRA_SESSION" } } 
+    });
+}
+
 // ----------------------------------------
 // 1. PAIRING CODE ENGINE
 // ----------------------------------------
@@ -25,17 +40,15 @@ app.get("/pair", async (req, res) => {
     
     try {
         const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
-        const sock = makeWASocket({
-            logger: pino({ level: "silent" }),
-            printQRInTerminal: false,
-            auth: state,
-            // 🚨 FIX 1: ബ്രൗസർ മാറ്റി, കൂടാതെ സിങ്ക് ഹിസ്റ്ററി ഓഫ് ആക്കി (Render ക്രാഷ് ആവാതിരിക്കാൻ)
-            browser: ["Ubuntu", "Chrome", "20.0.04"],
-            syncFullHistory: false
+        const sock = getOptimizedSocket(state);
+
+        // 🚨 പുതിയ ഫിക്സ്: വാട്സാപ്പ് അയക്കുന്ന ഹിസ്റ്ററി ഡാറ്റ അപ്പപ്പോൾ തന്നെ ബ്ലോക്ക് ചെയ്യുന്നു
+        sock.ev.on('messaging-history.set', () => {
+            console.log(`🗑️ Blocked history sync for ${phone} to save RAM!`);
         });
 
         if (!sock.authState.creds.registered) {
-            // 🚨 FIX 2: വാട്സാപ്പുമായി കണക്ട് ആവാൻ 3 സെക്കൻഡ് ഡിലേ കൊടുക്കുന്നു
+            // 🚨 3 സെക്കൻഡ് ഡിലേ ഫിക്സ്
             setTimeout(async () => {
                 try {
                     let code = await sock.requestPairingCode(phone);
@@ -50,18 +63,22 @@ app.get("/pair", async (req, res) => {
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
+            
             if (connection === 'open') {
                 await delay(3000); 
                 const credsData = fs.readFileSync(`${sessionFolder}/creds.json`);
                 const sessionId = Buffer.from(credsData).toString('base64');
                 const successMsg = `*✅ KIRA-X-MD SESSION GENERATED*\n\n*✨ SESSION ID:*\n${sessionId}\n\n_⚠️ Do not share this code with anyone!_`;
+                
                 await sock.sendMessage(sock.user.id, { text: successMsg });
                 await delay(2000);
+                
                 await sock.logout();
                 await sock.ws.close();
                 fs.removeSync(sessionFolder); 
                 console.log(`✅ Session complete for ${phone}`);
             }
+            
             if (connection === 'close') {
                 let reason = lastDisconnect?.error?.output?.statusCode;
                 if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.connectionClosed) {
@@ -69,7 +86,9 @@ app.get("/pair", async (req, res) => {
                 }
             }
         });
+        
         sock.ev.on('creds.update', saveCreds);
+        
     } catch (err) {
         try { fs.removeSync(sessionFolder); } catch (e) {}
         if (!res.headersSent) res.json({ error: "Service Unavailable. Try again later." });
@@ -83,15 +102,13 @@ app.get("/qr", async (req, res) => {
     const sessionFolder = `./temp_sessions/qr_${Date.now()}`;
     try {
         const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
-        const sock = makeWASocket({
-            logger: pino({ level: "silent" }),
-            printQRInTerminal: false,
-            auth: state,
-            browser: ["Ubuntu", "Chrome", "20.0.04"], // 🚨 QR നും ബ്രൗസർ മാറ്റി
-            syncFullHistory: false
-        });
-
+        const sock = getOptimizedSocket(state);
         let qrSent = false;
+
+        // 🚨 ഹിസ്റ്ററി ബ്ലോക്ക് ഫിക്സ് (QR-ലും)
+        sock.ev.on('messaging-history.set', () => {
+            console.log("🗑️ Blocked history sync for QR session to save RAM!");
+        });
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, qr, lastDisconnect } = update;
@@ -108,8 +125,10 @@ app.get("/qr", async (req, res) => {
                 const credsData = fs.readFileSync(`${sessionFolder}/creds.json`);
                 const sessionId = Buffer.from(credsData).toString('base64');
                 const successMsg = `*✅ KIRA-X-MD SESSION GENERATED*\n\n*✨ SESSION ID:*\n${sessionId}\n\n_⚠️ Do not share this code with anyone!_`;
+                
                 await sock.sendMessage(sock.user.id, { text: successMsg });
                 await delay(2000);
+                
                 await sock.logout();
                 await sock.ws.close();
                 fs.removeSync(sessionFolder);
@@ -122,14 +141,16 @@ app.get("/qr", async (req, res) => {
                 }
             }
         });
+        
         sock.ev.on('creds.update', saveCreds);
+        
     } catch (err) {
         try { fs.removeSync(sessionFolder); } catch (e) {}
-        if (!res.headersSent) res.json({ error: "Service Unavailable. Try again later." });
+        if (!res.headersSent) res.status(500).send("Error generating QR");
     }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
